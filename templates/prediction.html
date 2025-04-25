@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predict Disease - Crop Disease Prediction</title>
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        .prediction-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+        .card-header {
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 10px 10px 0 0;
+            padding: 1rem;
+        }
+        .upload-section {
+            padding: 2rem;
+        }
+        .image-preview {
+            max-width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            border-radius: 8px;
+            display: none;
+        }
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+            display: none;
+        }
+        #videoElement {
+            width: 100%;
+            border-radius: 8px;
+        }
+        .camera-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+        }
+        .btn-camera {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-camera:hover {
+            background-color: #45a049;
+            transform: scale(1.1);
+        }
+        .btn-primary {
+            background-color: #4CAF50;
+            border-color: #4CAF50;
+            padding: 0.8rem 2rem;
+        }
+        .btn-primary:hover {
+            background-color: #45a049;
+            border-color: #45a049;
+        }
+        .btn-outline-primary {
+            color: #4CAF50;
+            border-color: #4CAF50;
+        }
+        .btn-outline-primary:hover {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .upload-options {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .upload-option {
+            flex: 1;
+            text-align: center;
+            padding: 1rem;
+            border: 2px dashed #4CAF50;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .upload-option:hover {
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+        .upload-option i {
+            font-size: 2rem;
+            color: #4CAF50;
+            margin-bottom: 1rem;
+        }
+        .prompt-section {
+            margin-top: 2rem;
+        }
+        .form-control:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            margin: 2rem 0;
+        }
+        .spinner-border {
+            color: #4CAF50;
+        }
+        .results-section {
+            display: none;
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .disease-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 1rem;
+        }
+        .confidence {
+            font-size: 1.1rem;
+            color: #6c757d;
+        }
+        .disease-info {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: white;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .recommendations {
+            margin-top: 1.5rem;
+        }
+        .recommendations h5 {
+            color: #4CAF50;
+            margin-bottom: 1rem;
+        }
+        .recommendations ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .recommendations li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .recommendations li:last-child {
+            border-bottom: none;
+        }
+        .recommendations li i {
+            color: #4CAF50;
+            margin-right: 0.5rem;
+        }
+        @media (max-width: 768px) {
+            .upload-options {
+                flex-direction: column;
+            }
+            .prediction-container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="prediction-container">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0">Upload Image for Disease Prediction</h2>
+            </div>
+            <div class="upload-section">
+                <div class="upload-options">
+                    <div class="upload-option" id="uploadOption">
+                        <i class="fas fa-upload"></i>
+                        <h4>Upload Image</h4>
+                        <p>Select an image from your device</p>
+                    </div>
+                    <div class="upload-option" id="cameraOption">
+                        <i class="fas fa-camera"></i>
+                        <h4>Take Photo</h4>
+                        <p>Capture image using your camera</p>
+                    </div>
+                </div>
+
+                <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                <img id="imagePreview" class="image-preview" alt="Preview">
+                
+                <div class="camera-container" id="cameraContainer">
+                    <video id="videoElement" autoplay></video>
+                    <div class="camera-controls">
+                        <button class="btn-camera" id="captureButton">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                        <button class="btn-camera" id="switchCamera">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="prompt-section">
+                    <div class="mb-3">
+                        <label for="promptInput" class="form-label">Additional Information (Optional)</label>
+                        <textarea class="form-control" id="promptInput" rows="3" placeholder="Enter any additional information about the crop or symptoms..."></textarea>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button class="btn btn-primary btn-lg" id="predictButton" disabled>
+                        <i class="fas fa-search me-2"></i>Upload & Predict
+                    </button>
+                </div>
+
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Analyzing image...</p>
+                </div>
+
+                <div class="results-section" id="resultsSection">
+                    <div class="disease-name" id="diseaseName"></div>
+                    <div class="confidence" id="confidence"></div>
+                    <div class="disease-info" id="diseaseInfo"></div>
+                    <div class="recommendations">
+                        <h5>Treatment Recommendations</h5>
+                        <ul id="recommendationsList"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadOption = document.getElementById('uploadOption');
+            const cameraOption = document.getElementById('cameraOption');
+            const imageInput = document.getElementById('imageInput');
+            const imagePreview = document.getElementById('imagePreview');
+            const cameraContainer = document.getElementById('cameraContainer');
+            const videoElement = document.getElementById('videoElement');
+            const captureButton = document.getElementById('captureButton');
+            const switchCamera = document.getElementById('switchCamera');
+            const predictButton = document.getElementById('predictButton');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+
+            let stream = null;
+            let facingMode = 'environment';
+
+            // Upload option click handler
+            uploadOption.addEventListener('click', () => {
+                imageInput.click();
+            });
+
+            // Image input change handler
+            imageInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        imagePreview.src = e.target.result;
+                        imagePreview.style.display = 'block';
+                        cameraContainer.style.display = 'none';
+                        predictButton.disabled = false;
+                    };
+                    reader.readAsDataURL(e.target.files[0]);
+                }
+            });
+
+            // Camera option click handler
+            cameraOption.addEventListener('click', async () => {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: facingMode }
+                    });
+                    videoElement.srcObject = stream;
+                    cameraContainer.style.display = 'block';
+                    imagePreview.style.display = 'none';
+                    predictButton.disabled = false;
+                } catch (err) {
+                    console.error('Error accessing camera:', err);
+                    alert('Could not access camera. Please check permissions.');
+                }
+            });
+
+            // Switch camera handler
+            switchCamera.addEventListener('click', async () => {
+                facingMode = facingMode === 'user' ? 'environment' : 'user';
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: facingMode }
+                    });
+                    videoElement.srcObject = stream;
+                } catch (err) {
+                    console.error('Error switching camera:', err);
+                }
+            });
+
+            // Capture button handler
+            captureButton.addEventListener('click', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                canvas.getContext('2d').drawImage(videoElement, 0, 0);
+                imagePreview.src = canvas.toDataURL('image/jpeg');
+                imagePreview.style.display = 'block';
+                cameraContainer.style.display = 'none';
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+            });
+
+            // Predict button handler
+            predictButton.addEventListener('click', async () => {
+                loadingSpinner.style.display = 'block';
+                predictButton.disabled = true;
+                document.getElementById('resultsSection').style.display = 'none';
+
+                try {
+                    const formData = new FormData();
+                    if (imageInput.files[0]) {
+                        formData.append('image', imageInput.files[0]);
+                    } else {
+                        const response = await fetch(imagePreview.src);
+                        const blob = await response.blob();
+                        formData.append('image', blob, 'capture.jpg');
+                    }
+                    formData.append('prompt', document.getElementById('promptInput').value);
+
+                    const response = await fetch('/predict', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Prediction failed');
+                    }
+
+                    // Display results
+                    const resultsSection = document.getElementById('resultsSection');
+                    const diseaseName = document.getElementById('diseaseName');
+                    const confidence = document.getElementById('confidence');
+                    const diseaseInfo = document.getElementById('diseaseInfo');
+                    const recommendationsList = document.getElementById('recommendationsList');
+
+                    diseaseName.textContent = data.disease;
+                    confidence.textContent = `Confidence: ${(data.confidence * 100).toFixed(2)}%`;
+                    
+                    // Add disease information based on the prediction
+                    let infoText = '';
+                    if (data.disease.includes('healthy')) {
+                        infoText = 'Your crop appears to be healthy. Continue with regular maintenance and monitoring.';
+                    } else {
+                        infoText = `Your crop shows signs of ${data.disease}. Please follow the treatment recommendations below.`;
+                    }
+                    diseaseInfo.textContent = infoText;
+                    
+                    // Display recommendations
+                    recommendationsList.innerHTML = '';
+                    data.recommendations.forEach(recommendation => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<i class="fas fa-check-circle"></i>${recommendation}`;
+                        recommendationsList.appendChild(li);
+                    });
+                    
+                    resultsSection.style.display = 'block';
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert(`Error: ${error.message}`);
+                } finally {
+                    loadingSpinner.style.display = 'none';
+                    predictButton.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
